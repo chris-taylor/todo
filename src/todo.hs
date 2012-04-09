@@ -28,7 +28,7 @@ view :: [String] -> IO ()
 view [filePath] = do
     tasks <- getTasks filePath
     mapM_ putStrLn (numberTasks tasks)
-view _ = putStrLn "Exactly one argument required with command SHOW"
+view _ = putStrLn "Exactly one argument required with command VIEW"
 
 remove :: [String] -> IO ()
 remove [filePath,numberStr] = do
@@ -43,7 +43,7 @@ remove [filePath,numberStr] = do
             hClose tempHandle
             removeFile filePath
             renameFile tempPath filePath)
-remove _ = putStrLn "Exactly two argument required with command DELETE"
+remove _ = putStrLn "Exactly two argument required with command REMOVE"
 
 main :: IO ()
 main = do
