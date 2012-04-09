@@ -6,8 +6,7 @@ import Data.List
 
 getTasks :: FilePath -> IO [String]
 getTasks path = do
-    handle <- openFile path ReadMode
-    contents <- hGetContents handle
+    contents <- readFile path
     return (lines contents)
 
 numberTasks :: [String] -> [String]
