@@ -6,39 +6,42 @@ import Data.List
 filePath :: FilePath
 filePath = "../data/todo.txt"
 
-dispatch :: String -> [String] -> IO ()
-dispatch "add" = addItem
-dispatch "delete" = deleteItem
+getTasks :: FilePath -> IO [String]
+getTasks path = do
+    handle <- openFile path ReadMode
+    contents <- hGetContents handle
+    return (lines contents)
 
-addItem :: [String] -> IO ()
-addItem tasks = do
+numberTasks :: [String] -> [String]
+numberTasks = zipWith (\n line -> show n ++ " - " ++ line) [0..]
+
+dispatch :: String -> [String] -> IO ()
+dispatch "add" = addTask
+dispatch "show" = showTask
+dispatch "delete" = deleteTask
+
+addTask :: [String] -> IO ()
+addTask tasks = do
     handle <- openFile filePath AppendMode
     mapM_ (hPutStrLn handle) tasks
 
-deleteItem :: [String] -> IO ()
-deleteItem _ = do
-    handle <- openFile filePath ReadMode
-    contents <- hGetContents handle
-    
-    let tasks = lines contents
-    let numberedTasks = zipWith (\n line -> show n ++ " - " ++ line)
-                                [0..] tasks
-    
-    putStrLn "Your tasks are:"
-    mapM_ putStrLn numberedTasks
+showTask :: [String] -> IO ()
+showTask _ = do
+    tasks <- getTasks filePath
+    mapM_ putStrLn (numberTasks tasks)
+
+deleteTask :: [String] -> IO ()
+deleteTask _ = do
+    tasks <- getTasks filePath
+    mapM_ putStrLn (numberTasks tasks)
     putStrLn "Which one would you like to delete?"
-    
     numberStr <- getLine
     let newTasks = delete (tasks !! read numberStr) tasks
-    
     (tempPath, tempHandle) <- openTempFile "." "temp"
     mapM_ (hPutStrLn tempHandle) newTasks
     hClose tempHandle
-
     removeFile filePath
     renameFile tempPath filePath
-
-    return ()
 
 main :: IO ()
 main = do
