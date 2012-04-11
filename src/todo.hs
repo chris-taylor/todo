@@ -3,6 +3,7 @@ import System.IO
 import System.Directory
 import Control.Exception
 import Data.List
+import Data.Char
 
 -- Types
 
@@ -36,8 +37,7 @@ dispatch arg    = doNotRecognize arg
 add :: [String] -> IO ()
 add [filePath,task] = do
     appendFile filePath (task ++ "\n")
-    tasks <- getTasks filePath
-    let n = length tasks
+    n <- countLines filePath
     putStr $ "TODO: Added '" ++ task ++ "' on line " ++ show n ++ "\n"
 add _ = putStrLn "Exactly one argument required with command ADD"
 
@@ -52,8 +52,8 @@ list (filePath:args) = do
     let kwds = filter (not . isTag) args
 
     let filteredTasks = filter (hasTags tags . snd) numberedTasks
-    let filteredTasks = filter (containsKwd kwds . fst . snd) filteredTasks
-    let tasks = map (\(n,(a,_)) -> (n,a)) tasks
+    let filteredTasks' = filter (containsKwds kwds . fst . snd) filteredTasks
+    let tasks = map (\(n,(a,_)) -> (n,a)) filteredTasks'
 
     putStr $ unlines $ withNumbers tasks
     printFileInfo filePath
@@ -61,8 +61,10 @@ list (filePath:args) = do
 rm :: [String] -> IO ()
 rm [filePath,numberStr] = do
     tasks <- getTasks filePath
+    
     let oldTask = tasks !! (read numberStr - 1)
     let newTasks = delete oldTask tasks
+    
     bracketOnError (openTempFile "." "temp")
         (\(tempPath, tempHandle) -> do
             hClose tempHandle
@@ -72,6 +74,7 @@ rm [filePath,numberStr] = do
             hClose tempHandle
             removeFile filePath
             renameFile tempPath filePath)
+    
     putStr $ "TODO: Removed '" ++ oldTask ++ "' on line " ++ numberStr ++ "\n"
 rm _ = putStrLn "Exactly one argument required with command REMOVE"
 
@@ -107,11 +110,13 @@ isTag (c:cs) = c == '+'
 
 hasTags :: [Tag] -> TaggedTask -> Bool
 hasTags []    _        = True
-hasTags tags (_,tags') = overlapping tags tags' where
-    overlapping xs []     = False
-    overlapping xs (y:ys) = if y `elem` xs
-        then True
-        else overlapping xs ys
+hasTags tags (_,tags') = not . null $ intersect tags tags'
+
+containsKwds :: [String] -> Task -> Bool
+containsKwds []   _    = True
+containsKwds kwds task = or $ map (`isInfixOf` task_) kwds_ where
+    task_ = toLowercase task
+    kwds_ = map toLowercase kwds
 
 withNumbers :: [NumberedTask] -> [Task]
 withNumbers = map (\(n,line) -> show n ++ " - " ++ line)
@@ -123,3 +128,11 @@ splitOn xs []     = ([], [])
 splitOn xs (c:cs) = if c `elem` xs
     then ([], c:cs)
     else let (l,r) = splitOn xs cs in (c:l,r)
+
+toLowercase :: String -> String
+toLowercase = map toLower
+
+countLines :: FilePath -> IO Int
+countLines path = do
+    contents <- readFile path
+    return $ length $ lines contents
