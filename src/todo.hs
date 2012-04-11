@@ -33,7 +33,11 @@ dispatch "rm"   = rm
 dispatch arg    = doNotRecognize arg
 
 add :: [String] -> IO ()
-add [filePath,task] = appendFile filePath (task ++ "\n")
+add [filePath,task] = do
+    appendFile filePath (task ++ "\n")
+    tasks <- getTasks filePath
+    let n = length tasks
+    putStr $ "TODO: Added '" ++ task ++ "' on line " ++ show n ++ "\n"
 add _ = putStrLn "Exactly two arguments required with command ADD"
 
 list :: [String] -> IO ()
