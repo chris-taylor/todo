@@ -39,17 +39,24 @@ add [filePath,task] = do
     tasks <- getTasks filePath
     let n = length tasks
     putStr $ "TODO: Added '" ++ task ++ "' on line " ++ show n ++ "\n"
-add _ = putStrLn "Exactly two arguments required with command ADD"
+add _ = putStrLn "Exactly one argument required with command ADD"
 
 list :: [String] -> IO ()
-list (filePath:tags) = do
+list (filePath:args) = do
     tasks <- getTasks filePath
+
     let taggedTasks = map getTags tasks
     let numberedTasks = zip [1..] taggedTasks
-    let filteredTasks = map (\(n,(a,_)) -> (n,a)) $ filter (hasTags tags . snd) numberedTasks
-    putStr $ unlines $ withNumbers filteredTasks
+
+    let tags = filter isTag args
+    let kwds = filter (not . isTag) args
+
+    let filteredTasks = filter (hasTags tags . snd) numberedTasks
+    let filteredTasks = filter (containsKwd kwds . fst . snd) filteredTasks
+    let tasks = map (\(n,(a,_)) -> (n,a)) tasks
+
+    putStr $ unlines $ withNumbers tasks
     printFileInfo filePath
-list _ = putStrLn "Exactly one argument required with command VIEW"
 
 rm :: [String] -> IO ()
 rm [filePath,numberStr] = do
@@ -66,7 +73,7 @@ rm [filePath,numberStr] = do
             removeFile filePath
             renameFile tempPath filePath)
     putStr $ "TODO: Removed '" ++ oldTask ++ "' on line " ++ numberStr ++ "\n"
-rm _ = putStrLn "Exactly two arguments required with command REMOVE"
+rm _ = putStrLn "Exactly one argument required with command REMOVE"
 
 doNotRecognize :: Command -> t -> IO ()
 doNotRecognize arg _ = putStrLn ("Did not recognize command: " ++ arg)
@@ -92,7 +99,11 @@ getTasks path = do
 
 getTags :: Task -> (Task, [Tag])
 getTags s = (s, words rest) where
-    (_, rest) = splitOn "+@" s
+    (_, rest) = splitOn "+" s
+
+isTag :: String -> Bool
+isTag []     = False
+isTag (c:cs) = c == '+'
 
 hasTags :: [Tag] -> TaggedTask -> Bool
 hasTags []    _        = True
