@@ -8,6 +8,7 @@ import Data.List
 
 type Task = String
 type Tag = String
+type NumberedTask = (Int, String)
 type TaggedTask = (Task, [Tag])
 
 type Command = String
@@ -44,15 +45,16 @@ list :: [String] -> IO ()
 list (filePath:tags) = do
     tasks <- getTasks filePath
     let taggedTasks = map getTags tasks
-    let filteredTasks = map fst $ filter (hasTags tags) taggedTasks
-    putStr $ unlines $ numberTasks filteredTasks
+    let numberedTasks = zip [1..] taggedTasks
+    let filteredTasks = map (\(n,(a,_)) -> (n,a)) $ filter (hasTags tags . snd) numberedTasks
+    putStr $ unlines $ withNumbers filteredTasks
     printFileInfo filePath
 list _ = putStrLn "Exactly one argument required with command VIEW"
 
 rm :: [String] -> IO ()
 rm [filePath,numberStr] = do
     tasks <- getTasks filePath
-    let oldTask = tasks !! (read numberStr -1)
+    let oldTask = tasks !! (read numberStr - 1)
     let newTasks = delete oldTask tasks
     bracketOnError (openTempFile "." "temp")
         (\(tempPath, tempHandle) -> do
@@ -76,21 +78,21 @@ getFilePath = do
     path <- readFile config
     return $ init path
 
-printFileInfo :: String -> IO ()
+printFileInfo :: FilePath -> IO ()
 printFileInfo filePath = do
     tasks <- getTasks filePath
     let len = length tasks
     putStrLn "--"
     putStrLn ("TODO: " ++ show len ++ " tasks in " ++ filePath)
 
-getTasks :: FilePath -> IO [String]
+getTasks :: FilePath -> IO [Task]
 getTasks path = do
     contents <- readFile path
-    return (lines contents)
+    return $ lines contents
 
 getTags :: Task -> (Task, [Tag])
-getTags s = (str, words rest) where
-    (str, rest) = splitOn "+@" s
+getTags s = (s, words rest) where
+    (_, rest) = splitOn "+@" s
 
 hasTags :: [Tag] -> TaggedTask -> Bool
 hasTags []    _        = True
@@ -100,8 +102,8 @@ hasTags tags (_,tags') = overlapping tags tags' where
         then True
         else overlapping xs ys
 
-numberTasks :: [String] -> [String]
-numberTasks = zipWith (\n line -> show n ++ " - " ++ line) [1..]
+withNumbers :: [NumberedTask] -> [Task]
+withNumbers = map (\(n,line) -> show n ++ " - " ++ line)
 
 -- Utilities
 
