@@ -52,7 +52,8 @@ list _ = putStrLn "Exactly one argument required with command VIEW"
 rm :: [String] -> IO ()
 rm [filePath,numberStr] = do
     tasks <- getTasks filePath
-    let newTasks = delete (tasks !! (read numberStr - 1)) tasks
+    let oldTask = tasks !! (read numberStr -1)
+    let newTasks = delete oldTask tasks
     bracketOnError (openTempFile "." "temp")
         (\(tempPath, tempHandle) -> do
             hClose tempHandle
@@ -62,6 +63,7 @@ rm [filePath,numberStr] = do
             hClose tempHandle
             removeFile filePath
             renameFile tempPath filePath)
+    putStr $ "TODO: Removed '" ++ oldTask ++ "' on line " ++ numberStr ++ "\n"
 rm _ = putStrLn "Exactly two arguments required with command REMOVE"
 
 doNotRecognize :: Command -> t -> IO ()
