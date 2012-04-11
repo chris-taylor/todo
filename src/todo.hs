@@ -26,23 +26,24 @@ main = do
     dispatch command (filePath:arglist)
 
 dispatch :: Command -> [String] -> IO ()
-dispatch "add" = add
-dispatch "ls"  = ls
-dispatch "rm"  = rm
-dispatch arg   = doNotRecognize arg
+dispatch "add"  = add
+dispatch "list" = list
+dispatch "ls"   = list
+dispatch "rm"   = rm
+dispatch arg    = doNotRecognize arg
 
 add :: [String] -> IO ()
 add [filePath,task] = appendFile filePath (task ++ "\n")
 add _ = putStrLn "Exactly two arguments required with command ADD"
 
-ls :: [String] -> IO ()
-ls (filePath:tags) = do
+list :: [String] -> IO ()
+list (filePath:tags) = do
     tasks <- getTasks filePath
     let taggedTasks = map getTags tasks
     let filteredTasks = map fst $ filter (hasTags tags) taggedTasks
     putStr $ unlines $ numberTasks filteredTasks
     printFileInfo filePath
-ls _ = putStrLn "Exactly one argument required with command VIEW"
+list _ = putStrLn "Exactly one argument required with command VIEW"
 
 rm :: [String] -> IO ()
 rm [filePath,numberStr] = do
