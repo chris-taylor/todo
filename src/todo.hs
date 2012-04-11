@@ -4,36 +4,50 @@ import System.Directory
 import Control.Exception
 import Data.List
 
-getTasks :: FilePath -> IO [String]
-getTasks path = do
-    contents <- readFile path
-    return (lines contents)
+-- Types
 
-numberTasks :: [String] -> [String]
-numberTasks = zipWith (\n line -> show n ++ " - " ++ line) [0..]
+type Task = String
+type Tag = String
+type TaggedTask = (Task, [Tag])
 
-dispatch :: String -> [String] -> IO ()
-dispatch "add"    = add
-dispatch "view"   = view
-dispatch "remove" = remove
-dispatch arg      = doNotRecognize arg
+type Command = String
 
-doNotRecognize :: String -> t -> IO ()
-doNotRecognize arg _ = putStrLn ("Did not recognize command: " ++ arg)
+-- Configuration
+
+config :: FilePath
+config = "../data/config.txt"
+
+-- Primary functions
+
+main :: IO ()
+main = do
+    (command:arglist) <- getArgs
+    filePath <- getFilePath
+    dispatch command (filePath:arglist)
+
+dispatch :: Command -> [String] -> IO ()
+dispatch "add" = add
+dispatch "ls"  = ls
+dispatch "rm"  = rm
+dispatch arg   = doNotRecognize arg
 
 add :: [String] -> IO ()
-add (filePath:tasks) = appendFile filePath (unlines tasks)
+add [filePath,task] = appendFile filePath (task ++ "\n")
+add _ = putStrLn "Exactly two arguments required with command ADD"
 
-view :: [String] -> IO ()
-view [filePath] = do
+ls :: [String] -> IO ()
+ls (filePath:tags) = do
     tasks <- getTasks filePath
-    mapM_ putStrLn (numberTasks tasks)
-view _ = putStrLn "Exactly one argument required with command VIEW"
+    let taggedTasks = map getTags tasks
+    let filteredTasks = map fst $ filter (hasTags tags) taggedTasks
+    putStr $ unlines $ numberTasks filteredTasks
+    printFileInfo filePath
+ls _ = putStrLn "Exactly one argument required with command VIEW"
 
-remove :: [String] -> IO ()
-remove [filePath,numberStr] = do
+rm :: [String] -> IO ()
+rm [filePath,numberStr] = do
     tasks <- getTasks filePath
-    let newTasks = delete (tasks !! read numberStr) tasks
+    let newTasks = delete (tasks !! (read numberStr - 1)) tasks
     bracketOnError (openTempFile "." "temp")
         (\(tempPath, tempHandle) -> do
             hClose tempHandle
@@ -43,9 +57,49 @@ remove [filePath,numberStr] = do
             hClose tempHandle
             removeFile filePath
             renameFile tempPath filePath)
-remove _ = putStrLn "Exactly two argument required with command REMOVE"
+rm _ = putStrLn "Exactly two arguments required with command REMOVE"
 
-main :: IO ()
-main = do
-    (command:arglist) <- getArgs
-    dispatch command arglist
+doNotRecognize :: Command -> t -> IO ()
+doNotRecognize arg _ = putStrLn ("Did not recognize command: " ++ arg)
+
+-- Helper functions
+
+getFilePath :: IO String
+getFilePath = do
+    path <- readFile config
+    return $ init path
+
+printFileInfo :: String -> IO ()
+printFileInfo filePath = do
+    tasks <- getTasks filePath
+    let len = length tasks
+    putStrLn "--"
+    putStrLn ("TODO: " ++ show len ++ " tasks in " ++ filePath)
+
+getTasks :: FilePath -> IO [String]
+getTasks path = do
+    contents <- readFile path
+    return (lines contents)
+
+getTags :: Task -> (Task, [Tag])
+getTags s = (str, words rest) where
+    (str, rest) = splitOn "+@" s
+
+hasTags :: [Tag] -> TaggedTask -> Bool
+hasTags []    _        = True
+hasTags tags (_,tags') = overlapping tags tags' where
+    overlapping xs []     = False
+    overlapping xs (y:ys) = if y `elem` xs
+        then True
+        else overlapping xs ys
+
+numberTasks :: [String] -> [String]
+numberTasks = zipWith (\n line -> show n ++ " - " ++ line) [1..]
+
+-- Utilities
+
+splitOn :: String -> String -> (String, String)
+splitOn xs []     = ([], [])
+splitOn xs (c:cs) = if c `elem` xs
+    then ([], c:cs)
+    else let (l,r) = splitOn xs cs in (c:l,r)
