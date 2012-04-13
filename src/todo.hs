@@ -114,9 +114,9 @@ hasTags tags (_,tags') = not . null $ intersect tags tags'
 
 containsKwds :: [String] -> Task -> Bool
 containsKwds []   _    = True
-containsKwds kwds task = or $ map (`isInfixOf` task_) kwds_ where
-    task_ = toLowercase task
-    kwds_ = map toLowercase kwds
+containsKwds kwds task = or $ map (`isInfixOf` task') kwds' where
+    task' = toLowercase task
+    kwds' = map toLowercase kwds
 
 withNumbers :: [NumberedTask] -> [Task]
 withNumbers = map (\(n,line) -> show n ++ " - " ++ line)
